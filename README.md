@@ -127,6 +127,26 @@ manga-ocr/
 └── README.md
 ```
 
+## WD-Tagger 日本語翻訳データ
+
+[backend/selected_tags_ja.csv](backend/selected_tags_ja.csv) は、Danbooruのタグセットを日本語に翻訳したデータです。WD-Tagger 等の出力結果（英語タグ）を日本語に変換する用途などで活用いただけます。
+
+### 日本語変換サンプルコード (Python)
+
+```python
+import pandas as pd
+
+# 翻訳データの読み込み
+tags_df = pd.read_csv('backend/selected_tags_ja.csv')
+tag_map = dict(zip(tags_df['tag'], tags_df['name_ja']))
+
+# 変換例
+english_tags = ['1girl', 'solo', 'long_hair']
+japanese_tags = [tag_map.get(tag, tag) for tag in english_tags]
+
+print(japanese_tags) # ['1人', 'ソロ', 'ロングヘア']
+```
+
 ## 技術スタック
 
 - **Backend**: FastAPI, Python 3.8+
@@ -136,3 +156,6 @@ manga-ocr/
 ## ライセンス
 
 [MIT License](LICENSE)
+
+---
+Developed with [Antigravity](https://github.com/google-deepmind/antigravity) by Google DeepMind.
