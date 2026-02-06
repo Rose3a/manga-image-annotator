@@ -158,4 +158,4 @@ print(japanese_tags) # ['1人', 'ソロ', 'ロングヘア']
 [MIT License](LICENSE)
 
 ---
-Developed with [Antigravity](https://github.com/google-deepmind/antigravity) by Google DeepMind.
+Developed with [Antigravity](https://antigravity.google) by Google DeepMind.
