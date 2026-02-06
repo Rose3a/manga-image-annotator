@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>アノテーション・ビューアー</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <style>
+        .viewer-container {
+            display: grid;
+            grid-template-columns: 280px 1fr 340px;
+            gap: 20px;
+            height: calc(100vh - 160px);
+            margin-top: 20px;
+        }
+
+        .sidebar-list {
+            background: #1e293b;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4);
+            border: 1px solid #334155;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .sidebar-list h3 {
+            color: #818cf8;
+            margin-bottom: 15px;
+            font-size: 18px;
+            font-weight: 700;
+        }
+
+        #imageList {
+            flex: 1;
+            overflow-y: auto;
+            padding-right: 5px;
+        }
+
+        .image-item {
+            padding: 12px 15px;
+            margin-bottom: 10px;
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            color: #cbd5e1;
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 600;
+        }
+
+        .image-item:hover {
+            background: #1e293b;
+            border-color: #818cf8;
+            transform: translateX(4px);
+        }
+
+        .image-item.active {
+            background: #4f46e5;
+            color: white;
+            border-color: #818cf8;
+            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+        }
+
+        .image-item.completed {
+            border-left: 4px solid #10b981;
+        }
+
+        .viewer-main {
+            position: relative;
+            background: #1e293b;
+            border-radius: 12px;
+            overflow: auto;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 20px;
+            border: 1px solid #334155;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4);
+        }
+
+        #viewerCanvas {
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            background: #000;
+            border-radius: 4px;
+        }
+
+        .sidebar-edit {
+            background: #1e293b;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4);
+            border: 1px solid #334155;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .sidebar-edit h3 {
+            color: #818cf8;
+            margin-bottom: 20px;
+            font-size: 18px;
+            font-weight: 700;
+        }
+
+        #editList {
+            flex: 1;
+            overflow-y: auto;
+            padding-right: 5px;
+        }
+
+        .edit-item {
+            margin-bottom: 24px;
+            padding: 15px;
+            background: #0f172a;
+            border-radius: 10px;
+            border: 1px solid #334155;
+        }
+
+        .edit-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .edit-order {
+            background: #818cf8;
+            color: white;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 14px;
+            font-weight: 800;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+            border: 2px solid #818cf8;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .edit-order-input {
+            background: #334155;
+            color: white;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border: 2px solid #818cf8;
+            text-align: center;
+            font-size: 14px;
+            font-weight: 800;
+            padding: 0;
+            outline: none;
+        }
+
+        .edit-order-input:focus {
+            background: #475569;
+            box-shadow: 0 0 0 3px rgba(129, 140, 248, 0.3);
+        }
+
+        .edit-id {
+            font-size: 11px;
+            color: #64748b;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .reorder-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            margin-left: 10px;
+        }
+
+        .reorder-btn {
+            background: #334155;
+            border: 1px solid #475569;
+            color: #cbd5e1;
+            width: 24px;
+            height: 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            transition: all 0.2s;
+            padding: 0;
+        }
+
+        .reorder-btn:hover:not(:disabled) {
+            background: #475569;
+            border-color: #818cf8;
+            color: #818cf8;
+        }
+
+        .reorder-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        .edit-textarea {
+            width: 100%;
+            padding: 14px;
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            color: #f1f5f9;
+            font-family: inherit;
+            font-size: 18px;
+            line-height: 1.6;
+            resize: vertical;
+            transition: all 0.2s;
+            margin-bottom: 10px;
+        }
+
+        .edit-textarea:focus {
+            outline: none;
+            border-color: #818cf8;
+            box-shadow: 0 0 0 3px rgba(129, 140, 248, 0.2);
+        }
+
+        .save-btn {
+            width: 100%;
+            padding: 8px;
+            font-size: 13px;
+        }
+
+        .nav-link {
+            display: inline-flex;
+            align-items: center;
+            margin-bottom: 15px;
+            text-decoration: none;
+            color: #94a3b8;
+            font-weight: 600;
+            transition: color 0.2s;
+            font-size: 14px;
+        }
+
+        .nav-link:hover {
+            color: #818cf8;
+        }
+
+        .nav-link svg {
+            margin-right: 8px;
+        }
+
+        /* カスタムスクロールバー */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #0f172a;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #475569;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h1 style="margin: 0;">🔍 アノテーション・ビューアー</h1>
+                <a href="/" class="nav-link">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="19" y1="12" x2="5" y2="12"></line>
+                        <polyline points="12 19 5 12 12 5"></polyline>
+                    </svg>
+                    エディターに戻る
+                </a>
+            </div>
+            <p style="color: #94a3b8; margin: 0; font-size: 14px;">アノテーションされた画像の確認とテキストの修正が可能です。</p>
+        </header>
+
+        <main class="viewer-container">
+            <!-- 左側: 画像一覧 -->
+            <div class="sidebar-list">
+                <h3>アノレート済み画像</h3>
+                <div id="imageList">
+                    <div style="text-align: center; color: #64748b; padding-top: 20px;">読み込み中...</div>
+                </div>
+            </div>
+
+            <!-- 中央: キャンバス -->
+            <div class="viewer-main-wrapper" style="display: flex; flex-direction: column; overflow: hidden;">
+                <div class="viewer-toolbar"
+                    style="background: #1e293b; padding: 10px 20px; border-bottom: 1px solid #334155; display: flex; align-items: center; gap: 20px; border-top-left-radius: 12px; border-top-right-radius: 12px; border-left: 1px solid #334155; border-right: 1px solid #334155; flex-wrap: wrap;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span style="font-size: 12px; color: #94a3b8; font-weight: 600;">ズーム:</span>
+                        <input type="range" id="zoomSlider" min="0.1" max="2" step="0.1" value="1"
+                            style="width: 100px; accent-color: #818cf8;">
+                        <span id="zoomPercent" style="font-size: 12px; color: #cbd5e1; min-width: 40px;">100%</span>
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                        <button id="btnFitWidth" class="btn btn-secondary"
+                            style="padding: 4px 10px; font-size: 12px; height: auto;">幅に合わせる</button>
+                        <button id="btnFitHeight" class="btn btn-secondary"
+                            style="padding: 4px 10px; font-size: 12px; height: auto;">高さに合わせる</button>
+                        <button id="btnActualSize" class="btn btn-secondary"
+                            style="padding: 4px 10px; font-size: 12px; height: auto;">100%</button>
+                    </div>
+                    <div
+                        style="border-left: 1px solid #475569; padding-left: 15px; display: flex; align-items: center; gap: 10px;">
+                        <span style="font-size: 12px; color: #94a3b8; font-weight: 600;">タグ閾値:</span>
+                        <input type="range" id="taggerThreshold" min="0.1" max="0.9" step="0.05" value="0.6"
+                            style="width: 80px; accent-color: #10b981;">
+                        <span id="thresholdValue"
+                            style="font-size: 12px; color: #10b981; min-width: 35px; font-weight: 600;">0.60</span>
+                    </div>
+                    <div style="border-left: 1px solid #475569; padding-left: 15px; display: flex; gap: 8px;">
+                        <button id="btnRegenOCR" class="btn btn-secondary"
+                            style="padding: 4px 10px; font-size: 11px; height: auto;" title="全てのテキスト系アノテーションでOCRを再実行">🔄
+                            OCR再生成</button>
+                        <button id="btnRegenTags" class="btn btn-secondary"
+                            style="padding: 4px 10px; font-size: 11px; height: auto;"
+                            title="全ての人物/顔/物体アノテーションでTagを再実行">🔄 Tag再生成</button>
+                    </div>
+                </div>
+                <div class="viewer-main">
+                    <canvas id="viewerCanvas"></canvas>
+                    <div id="noImageSelected" style="color: #64748b; display: none;">左から画像を選択してください</div>
+                </div>
+            </div>
+
+            <!-- 右側: テキスト編集 -->
+            <div class="sidebar-edit">
+                <!-- 新規追加セクション -->
+                <div id="add-annotation-section"
+                    style="margin-bottom: 25px; padding-bottom: 20px; border-bottom: 2px solid #334155;">
+                    <div
+                        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                        <h3 style="margin: 0;">新規アノテーション</h3>
+                        <button id="btnAddNew" class="btn btn-primary"
+                            style="padding: 6px 12px; font-size: 12px;">描画開始</button>
+                    </div>
+                    <div id="newAnnoForm"
+                        style="display: none; background: #0f172a; padding: 15px; border-radius: 8px; border: 1px solid #4f46e5;">
+                        <div class="form-group" style="margin-bottom: 10px;">
+                            <label style="font-size: 11px;">タイプ</label>
+                            <select id="newTypeSelect" style="padding: 6px; font-size: 12px;">
+                                <option value="dialogue">セリフ</option>
+                                <option value="monologue">モノローグ</option>
+                                <option value="whisper">小声</option>
+                                <option value="narration">ナレーション</option>
+                                <option value="sound_effect">効果音</option>
+                                <option value="ruby">ルビ</option>
+                                <option value="title">タイトル</option>
+                                <option value="footnote">注釈</option>
+                                <option value="person">人物</option>
+                                <option value="face">顔</option>
+                                <option value="body_part">部位</option>
+                                <option value="object">物体</option>
+                            </select>
+                        </div>
+                        <div id="newSubtypeGroup" class="form-group" style="margin-bottom: 10px; display: none;">
+                            <label style="font-size: 11px;">部位の種類</label>
+                            <select id="newSubtypeSelect" style="padding: 6px; font-size: 12px;">
+                                <option value="penis">チンポ</option>
+                                <option value="vagina">マンコ</option>
+                                <option value="nipple">乳首</option>
+                                <option value="vaginal_interior">膣内</option>
+                                <option value="anal">アナル</option>
+                                <option value="other">その他</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="margin-bottom: 10px;">
+                            <label style="font-size: 11px;">キャラID / テキスト</label>
+                            <div style="display: flex; gap: 5px; margin-bottom: 5px;">
+                                <input type="text" id="newCharacterInput" placeholder="キャラID"
+                                    list="characterSuggestions" style="padding: 6px; font-size: 12px; flex: 2;">
+                                <input type="number" id="newOrderInput" placeholder="順序 (空欄で末尾)" min="1"
+                                    style="padding: 6px; font-size: 11px; flex: 1; background: #334155; color: white; border: 1px solid #475569; border-radius: 4px;">
+                            </div>
+                            <textarea id="newTextInput" rows="4" placeholder="テキスト内容..."
+                                style="padding: 8px; font-size: 14px; min-height: 80px; width: 100%; box-sizing: border-box; line-height: 1.5;"></textarea>
+                        </div>
+                        <div style="display: flex; gap: 4px; margin-bottom: 8px;">
+                            <button id="btnNewOCR" class="btn btn-secondary"
+                                style="flex: 1; padding: 6px; font-size: 11px;" disabled title="OCRでテキスト認識">📝
+                                OCR</button>
+                            <button id="btnNewTagger" class="btn btn-secondary"
+                                style="flex: 1; padding: 6px; font-size: 11px;" disabled title="タグ自動取得">🏷️ Tag</button>
+                        </div>
+                        <div style="display: flex; gap: 8px;">
+                            <button id="btnSaveNew" class="btn btn-success"
+                                style="flex: 1; padding: 6px; font-size: 12px;" disabled>保存</button>
+                            <button id="btnCancelNew" class="btn btn-secondary"
+                                style="flex: 1; padding: 6px; font-size: 12px;">取消</button>
+                        </div>
+                        <div id="newBBoxInfo"
+                            style="margin-top: 10px; font-size: 10px; color: #818cf8; font-family: monospace;">
+                            範囲を選択してください
+                        </div>
+                    </div>
+                </div>
+
+                <div id="page-summary-section"
+                    style="margin-bottom: 25px; padding-bottom: 20px; border-bottom: 1px solid #334155;">
+                    <h3 style="margin-bottom: 10px;">ページ全体の状況説明</h3>
+                    <div id="charTags" style="display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px;">
+                        <!-- キャラクターIDがここにタグとして表示される -->
+                    </div>
+                    <textarea id="pageSummaryText" rows="3" placeholder="シーンの状況説明..."
+                        style="width: 100%; padding: 10px; background: #1e293b; border: 1px solid #334155; border-radius: 8px; color: #f1f5f9; font-size: 14px; resize: vertical; margin-bottom: 10px;"></textarea>
+                    <button id="savePageSummaryBtn" class="btn btn-primary"
+                        style="width: 100%; padding: 8px; font-size: 13px; margin-bottom: 10px;">説明を保存</button>
+                    <button id="btnToggleComplete" class="btn btn-secondary"
+                        style="width: 100%; padding: 8px; font-size: 13px;">完了にする</button>
+                </div>
+                <h3>テキスト編集</h3>
+                <div class="viewer-special-chars"
+                    style="display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 15px; padding: 10px; background: #0f172a; border-radius: 8px; border: 1px solid #334155;">
+                    <button type="button" class="btn btn-secondary v-char-btn"
+                        style="padding: 4px 8px; font-size: 11px;" data-char="あ゙">あ゙</button>
+                    <button type="button" class="btn btn-secondary v-char-btn"
+                        style="padding: 4px 8px; font-size: 11px;" data-char="い゙">い゙</button>
+                    <button type="button" class="btn btn-secondary v-char-btn"
+                        style="padding: 4px 8px; font-size: 11px;" data-char="ゔ">ゔ</button>
+                    <button type="button" class="btn btn-secondary v-char-btn"
+                        style="padding: 4px 8px; font-size: 11px;" data-char="え゙">え゙</button>
+                    <button type="button" class="btn btn-secondary v-char-btn"
+                        style="padding: 4px 8px; font-size: 11px;" data-char="お゙">お゙</button>
+                    <button type="button" class="btn btn-secondary v-char-btn"
+                        style="padding: 4px 8px; font-size: 11px;" data-char="゙">濁点</button>
+                    <button type="button" class="btn btn-secondary v-char-btn"
+                        style="padding: 4px 8px; font-size: 11px;" data-char="‼">‼</button>
+                    <button type="button" class="btn btn-secondary v-char-btn"
+                        style="padding: 4px 8px; font-size: 11px;" data-char="⁉">⁉</button>
+                    <button type="button" class="btn btn-secondary v-char-btn"
+                        style="padding: 4px 8px; font-size: 11px; font-weight: bold;" data-char="※">※</button>
+                    <button type="button" class="btn btn-secondary v-char-btn" id="v-bracket-btn"
+                        style="padding: 4px 8px; font-size: 11px;" data-bracket="（）">（ ）</button>
+                    <button type="button" class="btn btn-secondary v-char-btn" id="v-bouten-btn"
+                        style="padding: 4px 8px; font-size: 11px;" title="選択文字に傍点を振る">傍点</button>
+                    <button type="button" class="btn btn-secondary v-char-btn"
+                        style="padding: 4px 8px; font-size: 11px;" data-char="█" title="伏せ字（フルブロック）">█</button>
+                    <button type="button" class="btn btn-primary v-char-btn" id="ruby-template-btn"
+                        style="padding: 4px 8px; font-size: 11px; background: #4f46e5; border-color: #6366f1;"
+                        data-template="{}">ルビ</button>
+                </div>
+
+                <!-- アノテーショングループ化のヒント -->
+                <details
+                    style="margin-bottom: 15px; background: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 10px;">
+                    <summary
+                        style="cursor: pointer; color: #818cf8; font-weight: 600; font-size: 12px; user-select: none;">
+                        💡 アノテーション番号のルール
+                    </summary>
+                    <div style="margin-top: 10px; font-size: 11px; color: #cbd5e1; line-height: 1.6;">
+                        <p
+                            style="margin: 8px 0; padding: 8px; background: #1e293b; border-radius: 4px; border-left: 3px solid #10b981;">
+                            <strong style="color: #10b981;">✓ 同じ番号にできる：</strong><br>
+                            • 擬音（常に可）例：order=2の「ドロ」と「ッ♡」<br>
+                            • 同一キャラの顔・体・部位（character_idが同じ）<br>
+                            • キャラが持っている物（character_idが同じ）
+                        </p>
+                        <p
+                            style="margin: 8px 0; padding: 8px; background: #1e293b; border-radius: 4px; border-left: 3px solid #f59e0b;">
+                            <strong style="color: #f59e0b;">✗ 別々の番号にする：</strong><br>
+                            • 同じキャラの複数の吹き出し<br>
+                            • 環境内の独立した物（テーブルのコーヒーなど）<br>
+                            • セリフ、モノローグ、ナレーション
+                        </p>
+                        <p
+                            style="margin: 8px 0; padding: 6px; background: #312e81; border-radius: 4px; font-size: 10px; color: #a5b4fc;">
+                            📌 グループ化されたアノテーションはキャンバス上で「2-1」「2-2」のように表示されます
+                        </p>
+                    </div>
+                </details>
+                <div id="editList">
+                    <div style="text-align: center; color: #64748b; padding-top: 20px;">画像を選択してください</div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div id="statusNotification" class="notification" style="display: none;"></div>
+
+    <datalist id="characterSuggestions"></datalist>
+    <script src="/static/viewer.js?v=6"></script>
+</body>
+
+</html>

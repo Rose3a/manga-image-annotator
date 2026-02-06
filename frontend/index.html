@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>漫画アノテーションツール</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1>📚 漫画アノテーションツール</h1>
+            <div id="uploadSection" class="upload-section" style="display: none;">
+                <input type="file" id="imageUpload" accept="image/*">
+                <button id="uploadBtn" class="btn btn-primary">画像をアップロード</button>
+                <button id="settingsBtn" class="btn btn-secondary" title="設定">⚙️ 設定</button>
+                <a href="/viewer" class="btn btn-secondary" style="text-decoration: none;">🔍 ビューアー</a>
+            </div>
+        </header>
+
+        <!-- 管理者パネル (ローカルのみ表示) -->
+        <div id="adminPanel"
+            style="display: none; background: #1e293b; padding: 1rem; border-radius: 8px; margin-bottom: 2rem; border: 1px solid #475569;">
+            <h3 style="margin-top: 0; color: #f8fafc; font-size: 1rem;">🔑 ゲストアクセス管理</h3>
+            <div style="color: #94a3b8; font-size: 0.9rem;">
+                <p style="margin: 0;">ゲスト用URL: <span id="guestUrlDisplay"
+                        style="color: #818cf8; font-weight: bold;"></span></p>
+                <p style="margin: 4px 0 0 0; font-size: 0.8rem;">※パスワードは .env ファイル（初期値: guest）で設定可能です</p>
+            </div>
+        </div>
+
+        <main class="main-content">
+            <!-- 左側: 画像表示エリア -->
+            <div class="image-panel">
+                <!-- 画像選択ドロップダウン (ゲスト用) -->
+                <div id="imageListSection"
+                    style="display: none; margin-bottom: 1rem; background: #1e293b; padding: 1rem; border-radius: 8px;">
+                    <h3 style="margin: 0 0 0.5rem 0; color: #f8fafc; font-size: 0.9rem;">📋 画像を選択</h3>
+                    <div style="display: flex; gap: 0.5rem; align-items: center;">
+                        <select id="imageSelector"
+                            style="flex: 1; padding: 0.5rem; border-radius: 6px; border: 1px solid #475569; background-color: #334155; color: #f8fafc; font-size: 0.9rem;">
+                            <option value="">-- 画像を選択してください --</option>
+                        </select>
+                        <a href="/viewer" class="btn btn-secondary"
+                            style="text-decoration: none; white-space: nowrap;">🔍 ビューアー</a>
+                    </div>
+                </div>
+                <div id="imageContainer" class="image-container">
+                    <canvas id="imageCanvas"></canvas>
+                    <div id="placeholderText" class="placeholder">
+                        画像をアップロードしてください
+                    </div>
+                </div>
+                <div class="image-info">
+                    <span id="imageInfo">画像ID: - | サイズ: -</span>
+                </div>
+            </div>
+
+            <!-- 右側: アノテーション入力フォーム -->
+            <div class="form-panel">
+                <h2>アノテーション入力</h2>
+
+                <div class="form-group">
+                    <label for="orderInput">コマ読み順 *</label>
+                    <input type="number" id="orderInput" min="1" value="1" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="typeSelect">テキストタイプ *</label>
+                    <select id="typeSelect" required>
+                        <option value="dialogue">セリフ</option>
+                        <option value="monologue">モノローグ/心の声</option>
+                        <option value="whisper">小声</option>
+                        <option value="narration">ナレーション</option>
+                        <option value="sound_effect">効果音</option>
+                        <option value="ruby">ルビ</option>
+                        <option value="title">タイトル</option>
+                        <option value="footnote">注釈 (※)</option>
+                        <option value="person">人物/全身/手足</option>
+                        <option value="face">顔</option>
+                        <option value="body_part">部位 (性器等)</option>
+                    </select>
+                </div>
+
+                <div id="subtypeGroup" class="form-group" style="display: none;">
+                    <label for="subtypeSelect">部位の種類</label>
+                    <select id="newSubtypeSelect" style="padding: 6px; font-size: 12px;">
+                        <option value="penis">チンポ</option>
+                        <option value="vagina">マンコ</option>
+                        <option value="nipple">乳首</option>
+                        <option value="vaginal_interior">膣内</option>
+                        <option value="anal">アナル</option>
+                        <option value="other">その他</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="textInput">テキスト内容 *</label>
+                    <div style="display: flex; gap: 8px; margin-bottom: 8px; flex-wrap: wrap;">
+                        <button type="button" id="rubyHelperBtn" class="btn btn-secondary"
+                            style="padding: 4px 8px; font-size: 12px;">ルビ雛形</button>
+                        <div class="special-chars" style="display: flex; gap: 4px;">
+                            <button type="button" class="btn btn-secondary char-btn"
+                                style="padding: 4px 8px; font-size: 12px;" data-char="あ゙">あ゙</button>
+                            <button type="button" class="btn btn-secondary char-btn"
+                                style="padding: 4px 8px; font-size: 12px;" data-char="い゙">い゙</button>
+                            <button type="button" class="btn btn-secondary char-btn"
+                                style="padding: 4px 8px; font-size: 12px;" data-char="ゔ">ゔ</button>
+                            <button type="button" class="btn btn-secondary char-btn"
+                                style="padding: 4px 8px; font-size: 12px;" data-char="え゙">え゙</button>
+                            <button type="button" class="btn btn-secondary char-btn"
+                                style="padding: 4px 8px; font-size: 12px;" data-char="お゙">お゙</button>
+                            <button type="button" class="btn btn-secondary char-btn"
+                                style="padding: 4px 8px; font-size: 12px;" data-char="゙">濁点(後付)</button>
+                            <button type="button" class="btn btn-secondary char-btn"
+                                style="padding: 4px 8px; font-size: 12px;" data-char="‼">‼</button>
+                            <button type="button" class="btn btn-secondary char-btn"
+                                style="padding: 4px 8px; font-size: 12px;" data-char="⁉">⁉</button>
+                            <button type="button" class="btn btn-secondary char-btn"
+                                style="padding: 4px 8px; font-size: 12px; font-weight: bold;" data-char="※">※</button>
+                            <button type="button" class="btn btn-secondary char-btn" id="bracket-btn"
+                                style="padding: 4px 8px; font-size: 12px;" data-bracket="（）">（ ）</button>
+                            <button type="button" class="btn btn-secondary char-btn" id="bouten-btn"
+                                style="padding: 4px 8px; font-size: 12px;" title="選択文字に傍点を振る">傍点</button>
+                            <button type="button" class="btn btn-secondary char-btn"
+                                style="padding: 4px 8px; font-size: 12px;" data-char="█" title="伏せ字（フルブロック）">█</button>
+                        </div>
+                        <button type="button" id="manualOCRBtn" class="btn btn-secondary"
+                            style="padding: 4px 8px; font-size: 12px;" disabled>📝 OCR</button>
+                        <button type="button" id="manualTaggerBtn" class="btn btn-secondary"
+                            style="padding: 4px 8px; font-size: 12px;" disabled>🏷️ Tag</button>
+                    </div>
+                    <textarea id="textInput" rows="4" placeholder="例: おはよう!" required></textarea>
+                    <small>
+                        ・<b>改行</b>: そのままエンターで入力してください (JSON上は \n となります)<br>
+                        ・<b>ルビ</b>: `<ruby>親文字<rt>ルビ</rt></ruby>` の形式で入力してください
+                    </small>
+                </div>
+
+                <div class="form-group">
+                    <label for="characterInput">キャラクターID (オプション)</label>
+                    <input type="text" id="characterInput" placeholder="例: char_001" list="characterList">
+                    <datalist id="characterList"></datalist>
+                </div>
+
+                <div class="bbox-info">
+                    <strong>選択範囲:</strong>
+                    <div id="bboxDisplay">マウスドラッグで範囲を選択してください</div>
+                </div>
+
+                <div class="form-actions">
+                    <button id="saveAnnotationBtn" class="btn btn-success" disabled>アノテーションを保存</button>
+                    <button id="clearSelectionBtn" class="btn btn-secondary">選択をクリア</button>
+                </div>
+
+                <div class="form-group" style="margin-top: 30px; border-top: 1px solid #334155; padding-top: 20px;">
+                    <label for="pageSummaryInput">ページ全体の状況説明（将来の学習用）</label>
+                    <textarea id="pageSummaryInput" rows="3" placeholder="例: 喫茶店で二人のキャラが会話している。一人は怒っている。"
+                        style="font-size: 16px;"></textarea>
+                    <button id="saveSummaryBtn" class="btn btn-primary"
+                        style="margin-top: 10px; width: 100%;">ページ説明を保存</button>
+                </div>
+
+                <div id="statusNotification" class="notification" style="display: none;"></div>
+
+                <!-- アノテーション一覧 -->
+                <div class="annotations-list">
+                    <h3>アノテーション一覧</h3>
+                    <div id="annotationsList"></div>
+                    <button id="exportJsonBtn" class="btn btn-primary" style="margin-top: 10px;"
+                        disabled>JSONをエクスポート</button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div class="container" style="margin-top: 50px; border-top: 1px solid #334155; padding-top: 20px;">
+        <h2>📘 使い方ガイド</h2>
+
+        <div class="guide-section" style="background: #1e293b; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+            <h3 style="color: #818cf8;">作業の流れ (ゲスト用)</h3>
+            <ol style="line-height: 1.8; color: #cbd5e1;">
+                <li><b>画像の選択</b>: 左側のリストから作業する画像を選びます。</li>
+                <li><b>テキスト選択</b>: 画像上のフキダシや文字をマウスでドラッグして囲みます（自動OCR）。</li>
+                <li><b>テキスト入力</b>: 右側のフォームに文字が自動入力されます（手動修正も可能）。</li>
+                <li><b>保存</b>: 「アノテーションを保存」ボタンを押します。</li>
+            </ol>
+            <p style="margin-top: 10px; color: #94a3b8; font-size: 0.9em;">
+                <b>Tips:</b> 「コマ読み順」は1コマ目からの通し番号です。「テキストタイプ」は適切なもの（セリフ、効果音など）を選んでください。
+            </p>
+        </div>
+
+        <div id="adminGuide"
+            style="display: none; background: #1e293b; padding: 20px; border-radius: 8px; border: 1px dashed #475569;">
+            <h3 style="color: #38bdf8;">管理者向けメモ</h3>
+            <ul style="line-height: 1.8; color: #cbd5e1;">
+                <li><b>ゲスト用画像</b>: <code>backend/data/guest_images</code> フォルダに画像を置いてください。</li>
+                <li><b>ゲストの成果物</b>: アノテーション結果は <code>backend/data/guest_annotations</code> に保存されます。</li>
+                <li><b>確認</b>: 管理者画面からはゲストの作業内容は直接見えません（フォルダが分離されています）。後でファイルをマージ等してください。</li>
+            </ul>
+        </div>
+
+        <!-- 研究目的・非商用利用の宣言 -->
+        <div
+            style="background: #1e293b; padding: 20px; border-radius: 8px; margin-top: 20px; border: 2px solid #475569;">
+            <h3 style="color: #fbbf24; margin-top: 0;">⚠️ 重要な注意事項</h3>
+            <p style="color: #cbd5e1; line-height: 1.8; margin: 0;">
+                このツールおよび収集されたデータは、<b>研究目的のみ</b>で使用されます。<br>
+                <b>非商用利用</b>に限定され、商業目的での利用は一切行いません。
+            </p>
+        </div>
+
+        <!-- ヒント -->
+        <div style="background: #1e293b; padding: 20px; border-radius: 8px; margin-top: 20px;">
+            <h3 style="color: #818cf8; margin-top: 0;">💡 ヒント</h3>
+            <ul style="line-height: 1.8; color: #cbd5e1;">
+                <li><b>読み方について</b>: あなたが思う読み方で構いません。自然に読める順番で番号を振ってください。</li>
+                <li><b>サンプルを参考に</b>:
+                    <a href="/viewer?image=1" style="color: #818cf8; text-decoration: underline;">画像1</a> と
+                    <a href="/viewer?image=3" style="color: #818cf8; text-decoration: underline;">画像3</a>
+                    にサンプルアノテーションがあります。ビューアーで確認してください。
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- 設定モーダル -->
+    <div id="settingsModal" class="modal"
+        style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7);">
+        <div
+            style="background: #1e293b; margin: 10% auto; padding: 2rem; border-radius: 12px; width: 500px; border: 1px solid #475569; position: relative;">
+            <span id="closeSettings"
+                style="position: absolute; right: 1.5rem; top: 1rem; font-size: 1.5rem; cursor: pointer; color: #94a3b8;">&times;</span>
+            <h2 style="margin-top: 0; color: #f8fafc;">⚙️ Tagger 設定</h2>
+
+            <div class="form-group" style="margin-top: 1.5rem;">
+                <label style="display: block; margin-bottom: 0.5rem; color: #cbd5e1;">使用するモデル</label>
+                <select id="settingModel"
+                    style="width: 100%; padding: 0.6rem; background: #334155; color: white; border: 1px solid #475569; border-radius: 6px;">
+                    <option value="SmilingWolf/wd-convnext-tagger-v3">SmilingWolf/wd-convnext-tagger-v3 (推奨)</option>
+                    <option value="SmilingWolf/wd-eva02-large-tagger-v3">SmilingWolf/wd-eva02-large-tagger-v3</option>
+                    <option value="SmilingWolf/wd-swinv2-tagger-v3">SmilingWolf/wd-swinv2-tagger-v3</option>
+                    <option value="SmilingWolf/wd-vit-large-tagger-v3">SmilingWolf/wd-vit-large-tagger-v3</option>
+                </select>
+            </div>
+
+            <div class="form-group" style="margin-top: 1.5rem;">
+                <label style="display: block; margin-bottom: 0.5rem; color: #cbd5e1;">信頼度閾値 (0.0 - 1.0)</label>
+                <div style="display: flex; align-items: center; gap: 1rem;">
+                    <input type="range" id="settingThreshold" min="0.0" max="1.0" step="0.05" style="flex: 1;">
+                    <span id="thresholdValue" style="color: #818cf8; font-weight: bold; width: 3rem;">0.60</span>
+                </div>
+            </div>
+
+            <div class="form-group" style="margin-top: 1.5rem;">
+                <label style="display: block; margin-bottom: 0.5rem; color: #cbd5e1;">除外タグ (カンマ区切り)</label>
+                <textarea id="settingExcludedTags" rows="3"
+                    style="width: 100%; padding: 0.6rem; background: #334155; color: white; border: 1px solid #475569; border-radius: 6px; font-size: 14px;"></textarea>
+                <small style="color: #94a3b8; display: block; margin-top: 0.25rem;">例: blue skin, colored skin,
+                    青肌</small>
+            </div>
+
+            <div style="margin-top: 2rem; display: flex; gap: 1rem;">
+                <button id="saveSettingsBtn" class="btn btn-primary" style="flex: 1;">設定を保存</button>
+                <button id="cancelSettingsBtn" class="btn btn-secondary" style="flex: 1;">キャンセル</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/app.js?v=13"></script>
+</body>
+
+</html>

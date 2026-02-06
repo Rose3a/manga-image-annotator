@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Guest Login</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #0f172a;
+        }
+
+        .login-card {
+            background-color: #1e293b;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+        }
+
+        .login-title {
+            color: #f8fafc;
+            font-size: 1.5rem;
+            margin-bottom: 0.5rem;
+            font-weight: 700;
+        }
+
+        .login-subtitle {
+            color: #94a3b8;
+            margin-bottom: 2rem;
+            font-size: 0.875rem;
+        }
+
+        .login-input {
+            width: 100%;
+            padding: 0.75rem;
+            border-radius: 6px;
+            border: 1px solid #475569;
+            background-color: #334155;
+            color: #f8fafc;
+            font-size: 1.25rem;
+            text-align: center;
+            letter-spacing: 0.5rem;
+            margin-bottom: 1.5rem;
+            box-sizing: border-box;
+        }
+
+        .login-input:focus {
+            outline: none;
+            border-color: #6366f1;
+            box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+        }
+
+        .login-btn {
+            width: 100%;
+            background-color: #6366f1;
+            color: white;
+            border: none;
+            padding: 0.75rem;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .login-btn:hover {
+            background-color: #4f46e5;
+        }
+
+        .error-msg {
+            color: #ef4444;
+            margin-top: 1rem;
+            font-size: 0.875rem;
+            min-height: 1.25rem;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="login-card">
+        <h1 class="login-title">ゲストアクセス</h1>
+        <p class="login-subtitle">管理者が設定した合言葉（パスワード）を入力してください</p>
+
+        <form id="loginForm">
+            <input type="text" id="otpInput" class="login-input" placeholder="Password" required autofocus
+                style="text-align: center; letter-spacing: normal;">
+            <button type="submit" class="login-btn">ログイン</button>
+        </form>
+        <div id="errorMsg" class="error-msg"></div>
+    </div>
+
+    <script>
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const otp = document.getElementById('otpInput').value;
+            const errorDiv = document.getElementById('errorMsg');
+            const btn = document.querySelector('.login-btn');
+
+            errorDiv.textContent = '';
+            btn.disabled = true;
+            btn.textContent = '認証中...';
+
+            try {
+                const response = await fetch('/guest/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ otp })
+                });
+
+                if (!response.ok) {
+                    throw new Error('認証に失敗しました。コードを確認してください。');
+                }
+
+                const data = await response.json();
+                localStorage.setItem('manga_ocr_token', data.token);
+                window.location.href = '/';
+            } catch (error) {
+                errorDiv.textContent = error.message;
+                btn.disabled = false;
+                btn.textContent = 'ログイン';
+            }
+        });
+    </script>
+</body>
+
+</html>
