@@ -95,11 +95,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 新規アノテーション関連のイベント
     document.getElementById('btnAddNew').addEventListener('click', toggleAddNewMode);
+    document.getElementById('btnAddNewPanel').addEventListener('click', () => {
+        toggleAddNewMode();
+        if (isAddNewMode) {
+            document.getElementById('newTypeSelect').value = 'panel';
+            // コマの場合は1番に挿入することが多いためデフォルトを設定
+            if (!document.getElementById('newOrderInput').value) {
+                document.getElementById('newOrderInput').value = '1';
+            }
+            updateNewTypeUI();
+        }
+    });
     document.getElementById('btnSaveNew').addEventListener('click', saveNewAnnotation);
     document.getElementById('btnCancelNew').addEventListener('click', cancelAddNew);
     document.getElementById('newTypeSelect').addEventListener('change', (e) => {
+        updateNewTypeUI();
         const newType = e.target.value;
-        document.getElementById('newSubtypeGroup').style.display = newType === 'body_part' ? 'block' : 'none';
         // person/body_part/object に変更時は自動でTagger実行
         if (['person', 'body_part', 'object'].includes(newType) && currentNewRect) {
             performNewBoxTagger();
@@ -139,9 +150,9 @@ document.addEventListener('DOMContentLoaded', () => {
         saveSummaryBtn.addEventListener('click', savePageSummary);
     }
 
-    // バッチ再生成ボタン
-    document.getElementById('btnRegenOCR')?.addEventListener('click', regenerateAllOCR);
-    document.getElementById('btnRegenTags')?.addEventListener('click', regenerateAllTags);
+    // 表示オプション
+    document.getElementById('checkShowArrows')?.addEventListener('change', redrawCanvas);
+    document.getElementById('checkCenterLabels')?.addEventListener('change', redrawCanvas);
 });
 
 // ユーザー権限チェック
@@ -518,39 +529,66 @@ function drawAnnotations() {
             labelText = `${anno.order}-${subIndex}`;
         }
 
+        const isCenter = document.getElementById('checkCenterLabels').checked;
         const fontSize = Math.max(24, Math.round(canvas.height / 40));
         ctx.font = `bold ${fontSize}px Arial`;
 
         const metrics = ctx.measureText(labelText);
-        const labelWidth = metrics.width + (fontSize * 0.25);
+        const labelWidth = metrics.width + (fontSize * 0.4);
         const labelHeight = fontSize * 1.1;
+
+        // 配置位置の計算
+        let labelX, labelY;
+        if (isCenter) {
+            labelX = x + (width - labelWidth) / 2;
+            labelY = y + (height - labelHeight) / 2;
+        } else {
+            labelX = x;
+            labelY = y;
+        }
 
         // 透明度を設定 (60%不透明)
         ctx.globalAlpha = 0.6;
 
         ctx.fillStyle = color;
-        ctx.fillRect(x, y, labelWidth, labelHeight);
+        ctx.fillRect(labelX, labelY, labelWidth, labelHeight);
 
         ctx.fillStyle = 'white';
-        ctx.fillText(labelText, x + (fontSize * 0.1), y + (fontSize * 0.9));
+        ctx.fillText(labelText, labelX + (fontSize * 0.2), labelY + (fontSize * 0.9));
 
         // 透明度を戻す
         ctx.globalAlpha = 1.0;
     });
 
     // 2. 矢印を描画
-    ctx.strokeStyle = '#818cf8'; // Indigo
-    ctx.lineWidth = 4;
-    ctx.lineCap = 'round';
-    ctx.fillStyle = '#818cf8';
+    const showArrows = document.getElementById('checkShowArrows').checked;
+    if (!showArrows) {
+        ctx.shadowBlur = 0;
+        return;
+    }
 
-    // ぼかし効果風のシャドウ
+    ctx.lineCap = 'round';
     ctx.shadowBlur = 10;
     ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
 
     for (let i = 0; i < currentAnnotations.length - 1; i++) {
-        const from = currentAnnotations[i].bbox_abs;
-        const to = currentAnnotations[i + 1].bbox_abs;
+        const fromAnno = currentAnnotations[i];
+        const toAnno = currentAnnotations[i + 1];
+        const from = fromAnno.bbox_abs;
+        const to = toAnno.bbox_abs;
+
+        // 次のアノテーションが選択中、もしくは現在のアノテーションが選択中の場合、強調表示
+        const isActive = selectedAnnotationId === fromAnno.id || selectedAnnotationId === toAnno.id;
+
+        ctx.strokeStyle = isActive ? '#fbbf24' : 'rgba(129, 140, 248, 0.4)'; // Active: Gold, Passive: Faded Indigo
+        ctx.fillStyle = isActive ? '#fbbf24' : 'rgba(129, 140, 248, 0.4)';
+        ctx.lineWidth = isActive ? 5 : 2;
+
+        if (!isActive) {
+            ctx.setLineDash([10, 8]); // 点線
+        } else {
+            ctx.setLineDash([]); // 実線
+        }
 
         // ボックスの中心点を計算
         const fromCX = from.x + from.width / 2;
@@ -558,70 +596,58 @@ function drawAnnotations() {
         const toCX = to.x + to.width / 2;
         const toCY = to.y + to.height / 2;
 
-        // 方向ベクトルを計算
         const dirX = toCX - fromCX;
         const dirY = toCY - fromCY;
         const dist = Math.sqrt(dirX * dirX + dirY * dirY);
 
-        if (dist < 10) continue; // 近すぎる場合はスキップ
+        if (dist < 10) continue;
 
         const normX = dirX / dist;
         const normY = dirY / dist;
 
-        // ボックスの辺と交差する点を計算（fromボックスの出口）
-        let fromX, fromY;
-        if (Math.abs(normX) * from.height > Math.abs(normY) * from.width) {
-            // 左右の辺から出る
-            if (normX > 0) {
-                fromX = from.x + from.width;
-                fromY = fromCY + normY * (from.width / 2 / Math.abs(normX));
-            } else {
-                fromX = from.x;
-                fromY = fromCY - normY * (from.width / 2 / Math.abs(normX));
-            }
+        // 内包チェック: toがfromの中に完全に入っているか、逆にfromがtoの中か
+        const isNested = (to.x >= from.x && to.y >= from.y && to.x + to.width <= from.x + from.width && to.y + to.height <= from.y + from.height) ||
+            (from.x >= to.x && from.y >= to.y && from.x + from.width <= to.x + to.width && from.y + from.height <= to.y + to.height);
+
+        // ボックスの辺と交差する点を計算
+        let fromX, fromY, toX, toY;
+
+        if (isNested) {
+            // 内包されている場合は、中心から少しずらした位置から開始/終了（重なりすぎを避ける）
+            fromX = fromCX + normX * 20;
+            fromY = fromCY + normY * 20;
+            toX = toCX - normX * 40;
+            toY = toCY - normY * 40;
         } else {
-            // 上下の辺から出る
-            if (normY > 0) {
-                fromY = from.y + from.height;
-                fromX = fromCX + normX * (from.height / 2 / Math.abs(normY));
+            // fromボックスの出口
+            if (Math.abs(normX) * from.height > Math.abs(normY) * from.width) {
+                if (normX > 0) { fromX = from.x + from.width; fromY = fromCY + normY * (from.width / 2 / Math.abs(normX)); }
+                else { fromX = from.x; fromY = fromCY - normY * (from.width / 2 / Math.abs(normX)); }
             } else {
-                fromY = from.y;
-                fromX = fromCX - normX * (from.height / 2 / Math.abs(normY));
+                if (normY > 0) { fromY = from.y + from.height; fromX = fromCX + normX * (from.height / 2 / Math.abs(normY)); }
+                else { fromY = from.y; fromX = fromCX - normX * (from.height / 2 / Math.abs(normY)); }
+            }
+
+            // toボックスの入口
+            if (Math.abs(normX) * to.height > Math.abs(normY) * to.width) {
+                if (normX > 0) { toX = to.x; toY = toCY - normY * (to.width / 2 / Math.abs(normX)); }
+                else { toX = to.x + to.width; toY = toCY + normY * (to.width / 2 / Math.abs(normX)); }
+            } else {
+                if (normY > 0) { toY = to.y; toX = toCX - normX * (to.height / 2 / Math.abs(normY)); }
+                else { toY = to.y + to.height; toX = toCX + normX * (to.height / 2 / Math.abs(normY)); }
             }
         }
 
-        // ボックスの辺と交差する点を計算（toボックスの入口）
-        let toX, toY;
-        if (Math.abs(normX) * to.height > Math.abs(normY) * to.width) {
-            // 左右の辺から入る
-            if (normX > 0) {
-                toX = to.x;
-                toY = toCY - normY * (to.width / 2 / Math.abs(normX));
-            } else {
-                toX = to.x + to.width;
-                toY = toCY + normY * (to.width / 2 / Math.abs(normX));
-            }
-        } else {
-            // 上下の辺から入る
-            if (normY > 0) {
-                toY = to.y;
-                toX = toCX - normX * (to.height / 2 / Math.abs(normY));
-            } else {
-                toY = to.y + to.height;
-                toX = toCX + normX * (to.height / 2 / Math.abs(normY));
-            }
-        }
-
-        drawArrow(fromX, fromY, toX, toY);
+        drawArrow(fromX, fromY, toX, toY, isActive);
     }
 
-    // シャドウ設定を戻す
+    ctx.setLineDash([]); // ダッシュ設定を戻す
     ctx.shadowBlur = 0;
 }
 
 // 矢印を描画するヘルパー関数
-function drawArrow(fromx, fromy, tox, toy) {
-    const headlen = 20; // 矢印の頭の長さ
+function drawArrow(fromx, fromy, tox, toy, isActive = false) {
+    const headlen = isActive ? 24 : 14; // 矢印の頭の長さ
     const dx = tox - fromx;
     const dy = toy - fromy;
     const angle = Math.atan2(dy, dx);
@@ -639,6 +665,7 @@ function drawArrow(fromx, fromy, tox, toy) {
     ctx.lineTo(tox - headlen * Math.cos(angle + Math.PI / 6), toy - headlen * Math.sin(angle + Math.PI / 6));
     ctx.closePath();
     ctx.fill();
+    ctx.stroke(); // 縁取りを追加して見やすくする
 }
 
 // 新規描画モードの切り替え
@@ -673,6 +700,27 @@ function cancelAddNew() {
     document.getElementById('btnNewTagger').disabled = true;
     document.getElementById('newBBoxInfo').textContent = '範囲を選択してください';
     redrawCanvas();
+}
+
+// 新規アノテーションフォームのTypeに連動したUI更新
+function updateNewTypeUI() {
+    const type = document.getElementById('newTypeSelect').value;
+    const subtypeGroup = document.getElementById('newSubtypeGroup');
+    const textInput = document.getElementById('newTextInput');
+
+    if (subtypeGroup) {
+        subtypeGroup.style.display = type === 'body_part' ? 'block' : 'none';
+    }
+
+    if (textInput) {
+        if (type === 'panel') {
+            textInput.placeholder = 'コマの簡略内容 (例: キャラ動作、背景、感情等)...';
+        } else if (type === 'sound_effect') {
+            textInput.placeholder = '擬音の内容...';
+        } else {
+            textInput.placeholder = 'テキスト内容...';
+        }
+    }
 }
 
 // Canvasイベントハンドラ
@@ -1027,6 +1075,7 @@ function displayEditList() {
                         <option value="face" ${anno.type === 'face' ? 'selected' : ''}>顔</option>
                         <option value="body_part" ${anno.type === 'body_part' ? 'selected' : ''}>部位</option>
                         <option value="object" ${anno.type === 'object' ? 'selected' : ''}>物体</option>
+                        <option value="panel" ${anno.type === 'panel' ? 'selected' : ''}>コマ</option>
                     </select>
 
                     <div class="edit-subtype-container" id="subtype-container-${anno.id}" style="display: ${anno.type === 'body_part' ? 'block' : 'none'};">
@@ -1071,6 +1120,16 @@ function displayEditList() {
         const textarea = editItem.querySelector('.edit-textarea');
         textarea.addEventListener('focus', () => {
             lastFocusedTextArea = textarea;
+            selectedAnnotationId = anno.id;
+            redrawCanvas();
+        });
+
+        // 全体クリックでも選択状態にする
+        editItem.addEventListener('click', (e) => {
+            if (selectedAnnotationId !== anno.id) {
+                selectedAnnotationId = anno.id;
+                redrawCanvas();
+            }
         });
 
         // 三点リーダー変換 & プレビュー更新
@@ -1531,7 +1590,8 @@ function getTypeLabel(type) {
         'person': '人物',
         'face': '顔',
         'body_part': '部位',
-        'object': '物体'
+        'object': '物体',
+        'panel': 'コマ'
     };
     return labels[type] || type;
 }
@@ -1560,7 +1620,8 @@ function getTypeColor(type) {
         'person': '#38b2ac',
         'face': '#f6ad55',
         'body_part': '#e53e3e',
-        'object': '#667eea'
+        'object': '#667eea',
+        'panel': '#805ad5'
     };
     return colors[type] || '#48bb78';
 }

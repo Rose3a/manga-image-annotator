@@ -21,7 +21,7 @@ class BoundingBoxRel(BaseModel):
 class Annotation(BaseModel):
     """個別のアノテーション情報"""
     id: str
-    type: Literal["dialogue", "monologue", "whisper", "narration", "ruby", "sound_effect", "title", "footnote", "person", "face", "body_part", "object"]
+    type: Literal["dialogue", "monologue", "whisper", "narration", "ruby", "sound_effect", "title", "footnote", "person", "face", "body_part", "object", "panel"]
     order: int  # コマの読み順
     bbox_abs: BoundingBoxAbs
     bbox_rel: BoundingBoxRel
@@ -49,7 +49,7 @@ class ImageAnnotation(BaseModel):
 class AnnotationCreate(BaseModel):
     """アノテーション作成用のリクエストモデル"""
     image_id: str
-    type: Literal["dialogue", "monologue", "whisper", "narration", "ruby", "sound_effect", "title", "footnote", "person", "face", "body_part", "object"]
+    type: Literal["dialogue", "monologue", "whisper", "narration", "ruby", "sound_effect", "title", "footnote", "person", "face", "body_part", "object", "panel"]
     order: Optional[int] = None
     bbox_abs: BoundingBoxAbs
     text: str
@@ -59,7 +59,7 @@ class AnnotationCreate(BaseModel):
 
 class AnnotationUpdate(BaseModel):
     """アノテーション更新用のリクエストモデル"""
-    type: Optional[Literal["dialogue", "monologue", "whisper", "narration", "ruby", "sound_effect", "title", "footnote", "person", "face", "body_part"]] = None
+    type: Optional[Literal["dialogue", "monologue", "whisper", "narration", "ruby", "sound_effect", "title", "footnote", "person", "face", "body_part", "object", "panel"]] = None
     order: Optional[int] = None
     bbox_abs: Optional[BoundingBoxAbs] = None
     text: Optional[str] = None

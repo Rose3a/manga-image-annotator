@@ -321,13 +321,20 @@
                         <span id="thresholdValue"
                             style="font-size: 12px; color: #10b981; min-width: 35px; font-weight: 600;">0.60</span>
                     </div>
-                    <div style="border-left: 1px solid #475569; padding-left: 15px; display: flex; gap: 8px;">
-                        <button id="btnRegenOCR" class="btn btn-secondary"
-                            style="padding: 4px 10px; font-size: 11px; height: auto;" title="全てのテキスト系アノテーションでOCRを再実行">🔄
-                            OCR再生成</button>
-                        <button id="btnRegenTags" class="btn btn-secondary"
-                            style="padding: 4px 10px; font-size: 11px; height: auto;"
-                            title="全ての人物/顔/物体アノテーションでTagを再実行">🔄 Tag再生成</button>
+                    <div
+                        style="border-left: 1px solid #475569; padding-left: 15px; display: flex; align-items: center; gap: 15px;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <input type="checkbox" id="checkShowArrows" checked
+                                style="width: 16px; height: 16px; accent-color: #818cf8;">
+                            <label for="checkShowArrows"
+                                style="font-size: 12px; color: #94a3b8; font-weight: 600; cursor: pointer;">順番の矢印を表示</label>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <input type="checkbox" id="checkCenterLabels"
+                                style="width: 16px; height: 16px; accent-color: #818cf8;">
+                            <label for="checkCenterLabels"
+                                style="font-size: 12px; color: #94a3b8; font-weight: 600; cursor: pointer;">数字を中央に表示</label>
+                        </div>
                     </div>
                 </div>
                 <div class="viewer-main">
@@ -344,8 +351,12 @@
                     <div
                         style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
                         <h3 style="margin: 0;">新規アノテーション</h3>
-                        <button id="btnAddNew" class="btn btn-primary"
-                            style="padding: 6px 12px; font-size: 12px;">描画開始</button>
+                        <div style="display: flex; gap: 8px;">
+                            <button id="btnAddNewPanel" class="btn btn-secondary"
+                                style="padding: 6px 12px; font-size: 12px; background: #805ad5; border-color: #9f7aea;">コマを描画</button>
+                            <button id="btnAddNew" class="btn btn-primary"
+                                style="padding: 6px 12px; font-size: 12px;">描画開始</button>
+                        </div>
                     </div>
                     <div id="newAnnoForm"
                         style="display: none; background: #0f172a; padding: 15px; border-radius: 8px; border: 1px solid #4f46e5;">
@@ -364,6 +375,7 @@
                                 <option value="face">顔</option>
                                 <option value="body_part">部位</option>
                                 <option value="object">物体</option>
+                                <option value="panel">コマ</option>
                             </select>
                         </div>
                         <div id="newSubtypeGroup" class="form-group" style="margin-bottom: 10px; display: none;">
